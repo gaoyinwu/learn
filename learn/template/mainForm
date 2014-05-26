@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Learn Console</title>
+<link type="text/css" href="/js/jquery-easyui-1.3.5/themes/default/easyui.css" rel="stylesheet"/>
+<link type="text/css" href="/js/jquery-easyui-1.3.5/themes/icon.css" rel="stylesheet"/>
+<link type="text/css" href="/js/jquery-easyui-1.3.5/demo/demo.css" rel="stylesheet">
+
+<script type="text/javascript" src="/js/jquery/jquery-1.8.0.min.js"></script>
+<script type="text/javascript" src="/js/jquery-easyui-1.3.5/jquery.easyui.min.js"></script>
+<script type="text/javascript" src="/js/jquery/jquery.loadmask.js"></script>
+<script type="text/javascript" src="/js/jquery/numberfy.js"></script>
+
+<script type="text/javascript" src="/js/dmc/tools.js"></script>
+<script type="text/javascript" src="/js/dmc/privilege.js"></script>
+<script>
+var serviceTree = $('#serviceTree');
+var locationTree = $('#locationTree');
+
+var currentServiceName = undefined;
+var currentServiceId = undefined;
+var currentServiceVersion = undefined;
+var currentCountry = undefined;
+var currentCity = undefined;
+var userid = {{request.session.ln_userid|safe}};
+
+
+$(document).ready(function () {
+
+});
+
+function getServiceVersionList(serviceName, serviceVersion) {
+    maskBegin('Loading data');
+
+    $.ajaxSetup({async: false});
+    $.ajax({
+        url: '/engineering/service/' + serviceName + '/' + serviceVersion,
+        cache: false,
+        success: function (responseData) {
+
+            //$('#mainPanel')[0].innerHTML = responseData;
+            //$('#mainPanel').empty();
+            $('#mainPanel').html(responseData);
+            $.parser.parse($('#mainPanel'));
+        }
+    });
+
+    maskEnd();
+}
+
+function getLocationList() {
+    maskBegin('Loading data');
+    locationTree = $('#locationTree');
+    $.ajaxSetup({async: false});
+    $.ajax({
+        url: "/deploy/location",
+        cache: false,
+        success: function (responseData) {
+            locationTree.tree({
+                data: responseData,
+                lines: true,
+
+                onClick: function (currentNode) {
+                    if ($(this).tree('isLeaf', currentNode.target)) {
+                        parentNode = $(this).tree('getParent', currentNode.target);
+                        getSiteList(currentNode.text, parentNode.text);
+                    }
+                }
+            });
+        }
+    });
+    maskEnd();
+    locationTree.tree('collapseAll');
+}
+
+function logout() {
+    window.location.href = '/logout';
+}
+
+</script>
+
+</head>
+<body class="easyui-layout">
+
+<div data-options="region:'north'" title="" style="height:40px;background:#E0ECFF;">
+    <div style="padding:2px;border:1px solid #ddd">
+        <table>
+            <tr>
+                <td>
+                    <a href="/logout" class="easyui-linkbutton" data-options="iconCls:'icon-back',plain:true"
+                       onclick="javascript:logout()">Logout</a>
+                    <a href="#" class="easyui-menubutton" data-options="menu:'#about',iconCls:'icon-help'">About</a>
+                </td>
+                <td>Welcome [{{ userName }}]</td>
+            </tr>
+        </table>
+    </div>
+ 
+    <div id="about" class="menu-content" style="background:#f0f0f0;padding:10px;text-align:left;border:1px solid #ddd;">
+        <p style="font-size:12px;color:#444;">Try learn to remind learn practice in future days.</p>
+    </div>
+
+</div>
+
+
+<div id="wrapForMainPanel" title="" data-options="region:'center'" style="height:100%;padding:1px;overflow:hidden;">
+    <div id="mainPanel" title="" style="padding:5px;">
+	    <table id="mainList" class="easyui-datagrid" style="width:400px;height:250px"  data-options="url:'/main/list',fitColumns:true,singleSelect:true">
+	    	<thead>
+		    <tr>
+			    <th data-options="field:'name',width:100">name</th>
+			    <th data-options="field:'question',width:100">question</th>
+			    <th data-options="field:'answer',width:100">answer</th>
+			    <th data-options="field:'createtime',width:100,align:'right'">createtime</th>
+		    </tr>
+		    </thead>
+	    </table>
+    </div>
+</div>
+
+<div id="dialogForServiceVersionEdit" title="Edit Service Version"
+     data-options="closed:true,modal:true,inline:false,iconCls:'icon-edit'" class="easyui-dialog"
+     style="width:320px;height:180px;padding:5px;">
+    <div id="wrapForDialogForServiceVersionEdit">
+    </div>
+</div>
+
+<div id="dialogForServiceVersionAdd" title="New Service Version"
+     data-options="closed:true,modal:true,inline:false,iconCls:'icon-add'" class="easyui-dialog"
+     style="width:320px;height:220px;padding:5px;">
+    <div id="wrapForDialogForServiceVersionAdd">
+    </div>
+</div>
+
+<div id="dialogForServiceOwner" title="Manage Service Owner"
+     data-options="closed:true,modal:true,inline:false,iconCls:'icon-add'" class="easyui-dialog"
+     style="width:320px;height:120px;padding:5px;">
+    <form id="serviceOwnerManageForm">
+        <table>
+            <tr>
+                <td>Service Owner:</td>
+                <td><input style="width:180px" class="easyui-validatebox" type="text" id="serviceOwners" data-options=""
+                           value=""/></td>
+            </tr>
+            <tr>
+                <td/>
+                <td/>
+            </tr>
+            <tr>
+                <td></td>
+                <td align='right'>
+                    <a href="javascript:saveServiceOwner()" class="easyui-linkbutton"
+                       data-options="iconCls:'icon-save'">Save</a>
+                    <a href="javascript:cancelServiceOwner()" class="easyui-linkbutton"
+                       data-options="iconCls:'icon-cancel'">Cancel</a>
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+
+<script>
+    function startProgress() {
+        var value = $('#p').progressbar('getValue');
+        if (value < 100) {
+            value += Math.floor(Math.random() * 10);
+        }
+        else {
+            value = 0;
+        }
+        $('#p').progressbar('setValue', value);
+        setTimeout(arguments.callee, 200);
+    }
+
+    function saveServiceOwner() {
+        maskBegin('Processing Data');
+        $.ajaxSetup({async: false});
+        $.ajax({
+            type: "POST",
+            url: '/engineering/service/owners/',
+            data: {
+                "service": currentServiceName,
+                "owners": $("#serviceOwners").val()
+            },
+            cache: false,
+            success: function (responseData) {
+                maskEnd();
+                if (responseData.result == '0000') {
+                    $.messager.alert('info', 'Update service owners success!', 'info');
+                    $('#dialogForServiceOwner').dialog('close');
+                } else {
+                    $.messager.alert('Warn', 'Update service owners fail![' + responseData.resultInfo + ']', 'warning');
+                }
+            }
+        });
+        maskEnd();
+    }
+    function cancelServiceOwner() {
+        $('#dialogForServiceOwner').dialog('close');
+    }
+</script>
+
+
+<div id="maskLoad" class="easyui-window" title="Please waiting"
+     data-options="closed:true,modal:true,collapsible:false,minimizable:false,maximizable:false,resizable:false,draggable:true,closable:false"
+     style="width:260px;height:85px;padding:13px;">
+    <div>
+        <table align='left' border='0' width='100%'>
+            <tr border='0'>
+                <td/>
+                <td>
+                    <image src='/images/panel_loading.gif' align='middle'/>
+                </td>
+                <td id='maskMessage'>Loading data ......</td>
+            </tr>
+        </table>
+    </div>
+
+</div>
+
+</body>
+</html>
